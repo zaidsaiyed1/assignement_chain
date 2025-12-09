@@ -23,13 +23,6 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 class CustomUserSerializer(serializers.ModelSerializer):
         token = serializers.SerializerMethodField()
-        
-        # def get_token(self,obj):
-        #         jwt_payload_handler = settings.JWT_PAYLOAD_HANDLER
-        #         jwt_encoded_handler  = settings.JWT_ENCODED_HANDLER
-        #         payload = jwt_payload_handler(obj)
-        #         token = jwt_encoded_handler(payload)
-        #         return token
         def create(self, validated_data):
              password = validated_data.pop("password", None)
              user = CustomUser(**validated_data)

@@ -20,7 +20,7 @@ class Event(models.Model):
 class RSVP(models.Model):
               event = models.ForeignKey(Event, on_delete=models.CASCADE)
               user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-              status = models.CharField(max_length=20, choices=['Going', 'Not Going', 'Maybe'])
+              status = models.CharField(max_length=20, choices=[('Going', 'Going'),('Not Going', 'Not Going'),('Maybe', 'Maybe'),])
               def __str__(self):
                   return f"{self.user.email} - {self.event.title} - {self.status}"
 

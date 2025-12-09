@@ -1,3 +1,93 @@
 from django.shortcuts import render
 
 # Create your views here.
+from rest_framework import viewsets
+from .serializers import *
+from rest_framework.filters import SearchFilter
+from rest_framework.views import APIView
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.contrib.auth import get_user_model
+user = get_user_model()
+
+class CustomUserApi(APIView):
+      def get_permissions(self):
+        if self.request.method in ['POST']:
+            return [AllowAny()]  # Allow anyone to register
+        elif self.request.method in ['GET', 'PATCH', 'DELETE']:
+            return [IsAuthenticated()]  # Require login for sensitive actions
+        else:
+            return [IsAuthenticated()] 
+      
+      def get(self,request):
+             if not request.user.is_authenticated:
+              return Response({"error": "Invalid Credentials"}, status=401)
+
+             user_id = request.query_params.get("id")
+             if user_id:
+                 queryset = CustomUser.objects.filter(id=user_id)
+                 serializer = CustomUserSerializer(queryset, many=True)
+                 return Response({"data": serializer.data})
+             else:
+               queryset = CustomUser.objects.all()
+               serializer = CustomUserSerializer(queryset, many=True)
+               return Response({"data": serializer.data})
+
+
+
+      def post(self,request):
+            dataNoti = request.data
+            serializer = CustomUserSerializer(data=dataNoti)
+            if not serializer.is_valid():
+                  return Response({
+                        "message":"Data is invalid",
+                        "errors":serializer.errors,
+                  })
+            serializer.save()
+
+            return Response({
+                  "message":"Data Saved",
+                  "data":serializer.data,
+            })
+
+      def put(self,request):
+            return Response({
+                  "message":"this is a put method for api"
+            })
+      def patch(self,request):
+            data = request.data
+            if not data.get('id'):
+                  return Response({
+                        "message":"Data not updated",
+                        "errors":"id is invalid",
+                  })
+            notification = CustomUser.objects.get(id=data.get('id'))
+            serializer=CustomUserSerializer(notification,data=data,partial=True)
+            if not serializer.is_valid():
+                  return Response({
+                        "message":"Data is invalid",
+                        "errors":serializer.errors,
+                  })
+            serializer.save()
+     
+            return Response({
+                  "message":"Data Saved",
+                  "data":serializer.data,
+            })
+      def delete(self,request):
+             data = request.data
+             if not data.get('id'):
+                   return Response({
+                         "message":"Data not updated",
+                         "errors":"id is invalid",
+                   })
+             user = CustomUser.objects.get(id=data.get('id')).delete()
+             
+             return Response({
+                   "message":"Data Delete",
+                   "data":{},
+             })
+      
+ 
