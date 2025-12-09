@@ -1,5 +1,5 @@
 from django.shortcuts import render
-
+from django.contrib.auth import authenticate
 # Create your views here.
 from rest_framework import viewsets
 from .serializers import *
@@ -91,3 +91,46 @@ class CustomUserApi(APIView):
              })
       
  
+
+
+class UserLoginView(APIView):
+      def get_permissions(self):
+        if self.request.method in ['POST']:
+            return [AllowAny()]  # Allow anyone to register
+        elif self.request.method in ['GET', 'PATCH', 'DELETE']:
+            return [IsAuthenticated()]  # Require login for sensitive actions
+        else:
+            return [IsAuthenticated()] 
+      
+
+
+
+      def get(self,request):
+             if not request.user.is_authenticated:
+                   return Response("Invalid Credentials")
+             
+             user = request.user
+            #  queryset = CustomUser.objects.all()
+             serializer=CustomUserSerializer(user.email,many=True)
+             return Response({
+                 "data":serializer.data
+               }) 
+      def post(self,request):
+            print("login")
+            data = request.data
+            print(data)
+            user_data = CustomUser.objects.get(email=data.get('email'))
+            print(user_data.email)
+            if user_data is not None:
+                  credentials = {
+                        'lemail':user_data.email,
+                        'lpassword':data.get('password')
+                  }
+                  user = authenticate(email=credentials["lemail"],password=credentials["lpassword"])
+
+                  print(user)
+                  if user and user.is_active:
+                        user_serializer = CustomUserSerializer(user)
+                        return Response(user_serializer.data,status=200)
+
+            return Response("Invalid Credentials",status=403)
