@@ -134,3 +134,91 @@ class UserLoginView(APIView):
                         return Response(user_serializer.data,status=200)
 
             return Response("Invalid Credentials",status=403)
+      
+
+
+
+class EventApi(APIView):
+      def get_permissions(self):
+        if self.request.method in ['POST']:
+            return [IsAuthenticated()]  
+        elif self.request.method in ['GET', 'PUT', 'DELETE']:
+            return [IsAuthenticated()]  
+        else:
+            return [IsAuthenticated()] 
+      
+      def get(self,request):
+             if not request.user.is_authenticated:
+              return Response({"error": "Invalid Credentials"}, status=401)
+
+             eid = request.query_params.get("id")
+             if eid:
+                 queryset = Event.objects.filter(id=eid)
+                 serializer = EventSerializer(queryset, many=True)
+                 return Response({"data": serializer.data})
+             else:
+               queryset = Event.objects.all()
+               serializer = EventSerializer(queryset, many=True)
+               return Response({"data": serializer.data})
+
+
+
+      def post(self,request):
+            if not request.user.is_authenticated:
+                     return Response({"error": "Invalid Credentials"}, status=401)
+
+            dataN = request.data
+            serializer = EventSerializer(data=dataN)
+            if not serializer.is_valid():
+                  return Response({
+                        "message":"Data is invalid",
+                        "errors":serializer.errors,
+                  })
+            serializer.save()
+
+            return Response({
+                  "message":"Data Saved",
+                  "data":serializer.data,
+            })
+
+      def put(self, request):
+        try:
+            eid = request.query_params.get("id")
+            event = Event.objects.get(id=eid)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if event.organizer != request.user:
+            return Response({"error": "You are not the organizer of this event"},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        serializer = EventSerializer(event, data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Event updated successfully", "data": serializer.data})
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+     
+      def delete(self,request):
+             data = request.data
+             if not data.get('id'):
+                   return Response({
+                         "message":"Data not updated",
+                         "errors":"id is invalid",
+                   })
+             if request.user != Event.objects.get(id=data.get('id')).organizer:
+                   return Response({
+                         "message":"You are not authorized to delete this event",
+                         "errors":"authorization error",
+                   }, status=status.HTTP_403_FORBIDDEN)
+             else:
+                   u = Event.objects.get(id=data.get('id')).delete()
+             
+             return Response({
+                   "message":"Data Delete",
+                   "data":{},
+             })
+      
+ 
