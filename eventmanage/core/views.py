@@ -146,13 +146,15 @@ class EventApi(APIView):
         else:
             return [IsAuthenticated()] 
       
-      def get(self,request):
+      def get(self,request,eid=None):
              if not request.user.is_authenticated:
               return Response({"error": "Invalid Credentials"}, status=401)
-
-             eid = request.query_params.get("id")
              if eid:
-                 queryset = Event.objects.filter(id=eid)
+                 try:
+                     queryset = Event.objects.filter(id=eid)
+                 except Event.DoesNotExist:
+                     return Response({"error": "Event not found"}, status=404)
+                 
                  serializer = EventSerializer(queryset, many=True)
                  return Response({"data": serializer.data})
              else:
@@ -180,9 +182,8 @@ class EventApi(APIView):
                   "data":serializer.data,
             })
 
-      def put(self, request):
+      def put(self, request,eid):
         try:
-            eid = request.query_params.get("id")
             event = Event.objects.get(id=eid)
         except Event.DoesNotExist:
             return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -200,20 +201,20 @@ class EventApi(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
      
-      def delete(self,request):
+      def delete(self,request,eid):
             
-             if not request.query_params.get("id"):
+             if not eid:
                    return Response({
                          "message":"Data not deleted",
                          "errors":"id is invalid",
                    })
-             if request.user != Event.objects.get(id=request.query_params.get("id")).organizer:
+             if request.user != Event.objects.get(id=eid).organizer:
                    return Response({
                          "message":"You are not authorized to delete this event",
                          "errors":"authorization error",
                    }, status=status.HTTP_403_FORBIDDEN)
              else:
-                   u = Event.objects.get(id=request.query_params.get("id")).delete()
+                   u = Event.objects.get(id=eid).delete()
              
              return Response({
                    "message":"Data Delete",
@@ -221,3 +222,76 @@ class EventApi(APIView):
              })
       
  
+
+
+class RSVPApi(APIView):
+      def get_permissions(self):
+        if self.request.method in ['POST']:
+            return [IsAuthenticated()]  
+        elif self.request.method in ['GET', 'PUT', 'DELETE']:
+            return [IsAuthenticated()]  
+        else:
+            return [IsAuthenticated()] 
+      
+      def get(self,request,eid=None):
+             if not request.user.is_authenticated:
+              return Response({"error": "Invalid Credentials"}, status=401)
+             if eid:
+                 try:
+                     queryset = RSVP.objects.filter(id=eid)
+                 except Event.DoesNotExist:
+                     return Response({"error": "Event not found"}, status=404)
+                 
+                 serializer = RSVPSerializer(queryset, many=True)
+                 return Response({"data": serializer.data})
+             else:
+               queryset = RSVP.objects.all()
+               serializer = RSVPSerializer(queryset, many=True)
+               return Response({"data": serializer.data})
+
+
+
+      def post(self,request,eid):
+            if not request.user.is_authenticated:
+                     return Response({"error": "Invalid Credentials"}, status=401)
+            try:
+                  event = Event.objects.get(id=eid)
+            except Event.DoesNotExist:
+                 return Response({"error": "Event not found"}, status=404)
+
+            dataN = {
+                  "event": event.id,
+                  "user": request.user.id,
+                  "status": request.data.get("status")
+              }
+            serializer = RSVPSerializer(data=dataN)
+            if not serializer.is_valid():
+                  return Response({
+                        "message":"Data is invalid",
+                        "errors":serializer.errors,
+                  })
+            serializer.save()
+
+            return Response({
+                  "message":"Data Saved",
+                  "data":serializer.data,
+            })
+
+      def patch(self, request,eid,rid):
+            try:
+                  rsvp = RSVP.objects.get(id=rid, event__id=eid)
+            except RSVP.DoesNotExist:
+                  return Response({"error": "RSVP not found"}, status=status.HTTP_404_NOT_FOUND)
+      
+            if rsvp.user != request.user:
+                  return Response({"error": "You are not the owner of this RSVP"},
+                              status=status.HTTP_403_FORBIDDEN)
+      
+            serializer = RSVPSerializer(rsvp, data=request.data, partial=True)
+      
+            if serializer.is_valid():
+                  serializer.save()
+                  return Response({"message": "RSVP updated successfully", "data": serializer.data})
+      
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+     
