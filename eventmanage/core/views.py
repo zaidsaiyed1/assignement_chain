@@ -63,8 +63,7 @@ class CustomUserApi(APIView):
                         "message":"Data not updated",
                         "errors":"id is invalid",
                   })
-            notification = CustomUser.objects.get(id=data.get('id'))
-            serializer=CustomUserSerializer(notification,data=data,partial=True)
+            serializer=CustomUserSerializer(data=data,partial=True)
             if not serializer.is_valid():
                   return Response({
                         "message":"Data is invalid",
@@ -202,19 +201,19 @@ class EventApi(APIView):
 
      
       def delete(self,request):
-             data = request.data
-             if not data.get('id'):
+            
+             if not request.query_params.get("id"):
                    return Response({
-                         "message":"Data not updated",
+                         "message":"Data not deleted",
                          "errors":"id is invalid",
                    })
-             if request.user != Event.objects.get(id=data.get('id')).organizer:
+             if request.user != Event.objects.get(id=request.query_params.get("id")).organizer:
                    return Response({
                          "message":"You are not authorized to delete this event",
                          "errors":"authorization error",
                    }, status=status.HTTP_403_FORBIDDEN)
              else:
-                   u = Event.objects.get(id=data.get('id')).delete()
+                   u = Event.objects.get(id=request.query_params.get("id")).delete()
              
              return Response({
                    "message":"Data Delete",
