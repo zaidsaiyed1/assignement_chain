@@ -1,12 +1,11 @@
 from django.shortcuts import render
 from django.contrib.auth import authenticate
 # Create your views here.
-from rest_framework import viewsets
+from rest_framework import viewsets, generics,filters
 from .serializers import *
 from rest_framework.filters import SearchFilter
 from rest_framework.views import APIView
 from rest_framework import status
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import get_user_model
@@ -220,7 +219,12 @@ class EventApi(APIView):
                    "message":"Data Delete",
                    "data":{},
              })
-      
+
+class EventSearch(generics.ListAPIView):
+    queryset = Event.objects.all()
+    serializer_class = EventSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['title', 'organizer__full_name', 'location']
  
 
 
@@ -233,24 +237,6 @@ class RSVPApi(APIView):
         else:
             return [IsAuthenticated()] 
       
-      def get(self,request,eid=None):
-             if not request.user.is_authenticated:
-              return Response({"error": "Invalid Credentials"}, status=401)
-             if eid:
-                 try:
-                     queryset = RSVP.objects.filter(id=eid)
-                 except Event.DoesNotExist:
-                     return Response({"error": "Event not found"}, status=404)
-                 
-                 serializer = RSVPSerializer(queryset, many=True)
-                 return Response({"data": serializer.data})
-             else:
-               queryset = RSVP.objects.all()
-               serializer = RSVPSerializer(queryset, many=True)
-               return Response({"data": serializer.data})
-
-
-
       def post(self,request,eid):
             if not request.user.is_authenticated:
                      return Response({"error": "Invalid Credentials"}, status=401)
@@ -294,4 +280,56 @@ class RSVPApi(APIView):
                   return Response({"message": "RSVP updated successfully", "data": serializer.data})
       
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-     
+
+
+
+class ReviewApi(APIView):
+      def get_permissions(self):
+        if self.request.method in ['POST']:
+            return [IsAuthenticated()]  
+        elif self.request.method in ['GET', 'PUT', 'DELETE']:
+            return [IsAuthenticated()]  
+        else:
+            return [IsAuthenticated()] 
+      
+      def get(self,request,eid=None):
+             if not request.user.is_authenticated:
+              return Response({"error": "Invalid Credentials"}, status=401)
+             if eid:
+                 try:
+                     event = Review.objects.filter(event=eid)
+                 except Event.DoesNotExist:
+                     return Response({"error": "Event not found"}, status=404)
+                 
+                 queryset = Review.objects.filter(event=eid)
+                 serializer = ReviewSerializer(queryset, many=True)
+                 return Response({"data": serializer.data})
+
+
+
+      def post(self,request,eid):
+            if not request.user.is_authenticated:
+                     return Response({"error": "Invalid Credentials"}, status=401)
+            try:
+                  event =Event.objects.get(id=eid)
+            except Event.DoesNotExist:
+                 return Response({"error": "Event not found"}, status=404)
+
+            dataN = {
+                  "event": event.id,
+                  "user": request.user.id,
+                  "rating": request.data.get("rating"),
+                  "comment": request.data.get("comment")
+              }
+            serializer = ReviewSerializer(data=dataN)
+            if not serializer.is_valid():
+                  return Response({
+                        "message":"Data is invalid",
+                        "errors":serializer.errors,
+                  })
+            serializer.save()
+
+            return Response({
+                  "message":"Data Saved",
+                  "data":serializer.data,
+            })

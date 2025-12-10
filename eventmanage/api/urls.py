@@ -10,6 +10,7 @@ urlpatterns = [
               path("events/<int:eid>/",views.EventApi.as_view()),
               path("events/<int:eid>/rsvp/",views.RSVPApi.as_view()),
               path("events/<int:eid>/rsvp/<int:rid>/",views.RSVPApi.as_view()),
-              
+              path("events/<int:eid>/reviews/",views.ReviewApi.as_view()),
+              path("eventsSearch/",views.EventSearch.as_view()),
              
 ]
